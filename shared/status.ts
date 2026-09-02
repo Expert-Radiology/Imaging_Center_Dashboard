@@ -38,8 +38,6 @@ function allMilestonesClosed(m: Milestones): boolean {
 export function deriveStatus(input: StatusInput): StatusKey {
   const { daysInPipeline: days, percentComplete: pct, blockerGroup, owner, startDate } = input;
 
-  if (allMilestonesClosed(input.milestones)) return 'excellent';
-
   if (days !== null && days >= STATUS_THRESHOLDS.criticalDays) return 'critical';
 
   if (days !== null && days >= STATUS_THRESHOLDS.seriousDays) return 'serious';
@@ -49,6 +47,12 @@ export function deriveStatus(input: StatusInput): StatusKey {
   if (days !== null && days >= STATUS_THRESHOLDS.stalledDays && (pct ?? 0) === 0) {
     return 'serious';
   }
+
+  // Checked only after the aging bands, not before them. A connection whose
+  // milestones are all closed but which has been open 261 days waiting on a
+  // duplicate RamSoft tunnel is Critical, not Excellent — the live data made
+  // this concrete: PDI was reporting Excellent at 261 days.
+  if (allMilestonesClosed(input.milestones)) return 'excellent';
 
   if (days !== null && days >= STATUS_THRESHOLDS.watchDays) return 'watch';
   // No owner and no start date are themselves risks — an unmeasurable

@@ -215,7 +215,7 @@ export function normalizeConnection(task: ClickUpTask, context: NormalizeContext
   return {
     id: task.id,
     centerId: task.id,
-    centerName: task.name,
+    centerName: task.name.trim(),
     qualifier: buildQualifier(task, connectionType),
     connectionType,
     pacsVendor: textValue(task, FIELD.pacsVendor),

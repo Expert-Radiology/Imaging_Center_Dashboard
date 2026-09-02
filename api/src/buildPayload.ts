@@ -12,6 +12,7 @@ import type {
 import { overallStatus, readingOrder, SEVERITY_RANK } from '../../shared/status';
 import { ClickUpClient, mapWithConcurrency } from './clickup/client';
 import { normalizeConnection, resolvePendingFields } from './clickup/normalize';
+import { isClosed } from './clickup/parse';
 import editorial from './content/editorial.json';
 import { hqToday, weekStartFor, weekLabelFor, weekRangeLabel, addWeeks } from './time';
 
@@ -44,13 +45,20 @@ export async function buildPayload(
     if (!warnings.includes(message)) warnings.push(message);
   };
 
-  const [openTasks, listFields, totalCenters] = await Promise.all([
+  const [allTasks, listFields, totalCenters] = await Promise.all([
     client.listOpenCenters(options.listId),
     client.listCustomFields(options.listId),
     client.countAllCenters(options.listId).catch(() => 0),
   ]);
 
   const pendingFields = resolvePendingFields(listFields);
+
+  // `include_closed=false` filters on the status *type*, and this list's
+  // "completed" status is not typed closed — so the endpoint returns every
+  // finished center too. Verified against the live list: 107 tasks come back,
+  // of which 79 are completed and 28 genuinely open. Filtering here rather than
+  // trusting the query parameter is what makes the counts match reality.
+  const openTasks = allTasks.filter((task) => !isClosed(task));
 
   // One detail call per open center for subtask completion. Bounded so a large
   // pipeline degrades gracefully instead of hammering the rate limit.
