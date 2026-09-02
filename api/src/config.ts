@@ -28,8 +28,20 @@ export async function getClickUpToken(): Promise<string | null> {
   if (!secretName) throw new Error(`CLICKUP_TOKEN_SECRET_URI is malformed: ${secretUri}`);
 
   const client = new SecretClient(vaultUrl, new DefaultAzureCredential());
-  const secret = await client.getSecret(secretName);
-  if (!secret.value) throw new Error(`Key Vault secret ${secretName} has no value`);
+
+  let secret;
+  try {
+    secret = await client.getSecret(secretName);
+  } catch (error) {
+    // A vault with no token in it yet is a configuration state, not a crash:
+    // before launch the secret genuinely does not exist. Treated the same as an
+    // unset token, so the hourly job reports it once instead of failing every
+    // run. Anything else — no access, vault unreachable — still throws.
+    if ((error as { statusCode?: number }).statusCode === 404) return null;
+    throw error;
+  }
+
+  if (!secret.value) return null;
 
   cached = { value: secret.value, fetchedAt: Date.now() };
   return cached.value;
