@@ -119,10 +119,41 @@ export async function buildPayload(
   };
 }
 
+/**
+ * Editorial content is keyed by the center's readable name, but ClickUp task
+ * names carry decoration the humans writing that file do not: connection-type
+ * suffixes ("Paragon Imaging - SaaS"), qualifiers in parentheses ("Precision
+ * Diagnostic Imaging (PDI)"), inconsistent ampersands, and trailing spaces.
+ * Matching on the raw name left 10 of 28 connections with no next action.
+ *
+ * Both sides are reduced to the same key. Genuine mismatches that no rule can
+ * fix — "Gloabal DX" is misspelled in ClickUp itself — go in `aliases`.
+ */
+function nameKey(name: string): string {
+  const aliases = (editorial.aliases ?? {}) as Record<string, string>;
+  const resolved = aliases[name.trim()] ?? name;
+
+  return resolved
+    .toLowerCase()
+    .replace(/\s+-\s+.*$/, ' ')
+    .replace(/\(.*?\)/g, ' ')
+    .replace(/&/g, ' and ')
+    .replace(/\b(saas only|saas|new deal)\b/g, ' ')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/** Build a lookup whose keys are normalized the same way. */
+function keyed<T>(source: Record<string, T>): Map<string, T> {
+  return new Map(Object.entries(source).map(([name, value]) => [nameKey(name), value]));
+}
+
+const NEXT_ACTIONS = keyed(editorial.nextActions as Record<string, string>);
+const SHORT_NAMES = keyed(editorial.shortNames as Record<string, string>);
+
 /** Next actions are editorial. A center with none renders an em dash, not a guess. */
 function applyEditorial(connection: Connection): Connection {
-  const actions = editorial.nextActions as Record<string, string>;
-  return { ...connection, nextAction: actions[connection.centerName] ?? null };
+  return { ...connection, nextAction: NEXT_ACTIONS.get(nameKey(connection.centerName)) ?? null };
 }
 
 function distinctOwners(connections: Connection[]): string[] {
@@ -168,8 +199,7 @@ function stripGroupPrefix(text: string): string {
 }
 
 function shortName(name: string): string {
-  const names = editorial.shortNames as Record<string, string>;
-  return names[name] ?? name;
+  return SHORT_NAMES.get(nameKey(name)) ?? name.trim();
 }
 
 function buildThroughput(
@@ -191,7 +221,9 @@ function buildThroughput(
           .filter((c) => c.estimatedDeployment && !c.onHold)
           .filter((c) => weekStartFor(c.estimatedDeployment!.label) === start)
           .map((c) => shortName(c.centerName))
-      : (proposed[String(offset)] ?? []).map(shortName);
+      : (proposed[String(offset)] ?? [])
+          .filter((name) => connections.some((c) => nameKey(c.centerName) === nameKey(name)))
+          .map(shortName);
 
     // A future week is not measurable yet — null, distinct from a measured 0.
     const isPastOrCurrent = start <= todayWeek;
@@ -245,11 +277,11 @@ function buildDecisions(connections: Connection[]): DecisionCard[] {
     pinned: true,
   }));
 
-  const covered = new Set(pinned.map((card) => card.title.toLowerCase()));
+  const covered = new Set(pinned.map((card) => nameKey(card.title)));
   const candidates: DecisionCard[] = [];
 
   for (const connection of connections) {
-    if (covered.has(connection.centerName.toLowerCase())) continue;
+    if (covered.has(nameKey(connection.centerName))) continue;
 
     const reasons: string[] = [];
     if (connection.status === 'critical') reasons.push('Critical status');

@@ -9,13 +9,19 @@
     "Edit this file and redeploy. Anything not listed renders as a gap, never as a",
     "guess — a connection with no nextAction shows an em dash."
   ],
-
   "team": {
     "projectLead": "Cristian Lorenzo",
     "onboardingIntegrations": "Sebastian Sterling",
     "clientSuccess": "Wesley Graham"
   },
-
+  "_aliasesComment": [
+    "Names that no normalisation rule can reconcile, mapped to the readable",
+    "name used as a key elsewhere in this file. 'Gloabal DX' is misspelled in",
+    "ClickUp itself — fix it there and this entry can go."
+  ],
+  "aliases": {
+    "Gloabal DX": "Global DX"
+  },
   "nextActions": {
     "Precision Diagnostic Imaging": "Send PDI DICOM IP, AE title and port to RamSoft",
     "Parkwood MRI": "Book call with Renee; close 5 stale subtasks (tech is done)",
@@ -46,7 +52,6 @@
     "3T MRI at Belfair": "Decide keep or close",
     "Broadway Imaging": "Decide keep or close"
   },
-
   "blockerExtras": [
     {
       "group": "ramsoft",
@@ -64,21 +69,39 @@
       "text": "P2S VPN rule shipped Sep 2, needs validation"
     }
   ],
-
   "_proposedSequenceComment": [
     "Delete this block once `Estimated deployment date` exists on the ClickUp list.",
     "While it is here the throughput row is a proposal and every date renders with *.",
     "Keys are week offsets from the current week: 0 = this week, 5 = five weeks out."
   ],
   "proposedSequence": {
-    "0": ["Precision Diagnostic Imaging", "Parkwood MRI"],
-    "1": ["One Step Diagnostic", "Open MRI of Tifton"],
-    "2": ["Paragon Imaging", "Pinnacle Joint & Spine", "Keystone Medical Group"],
-    "3": ["Gainesville High Field MRI", "The MRI Group", "MRI of Key West"],
-    "4": ["Affiliated Healthcare", "Stat Imaging"],
-    "5": ["Open MRI of Conway", "Searcy Open MRI"]
+    "0": [
+      "Precision Diagnostic Imaging",
+      "Parkwood MRI"
+    ],
+    "1": [
+      "One Step Diagnostic",
+      "Open MRI of Tifton"
+    ],
+    "2": [
+      "Paragon Imaging",
+      "Pinnacle Joint & Spine",
+      "Keystone Medical Group"
+    ],
+    "3": [
+      "Gainesville High Field MRI",
+      "The MRI Group",
+      "MRI of Key West"
+    ],
+    "4": [
+      "Affiliated Healthcare",
+      "Stat Imaging"
+    ],
+    "5": [
+      "Open MRI of Conway",
+      "Searcy Open MRI"
+    ]
   },
-
   "shortNames": {
     "Precision Diagnostic Imaging": "PDI",
     "Parkwood MRI": "Parkwood",
@@ -95,7 +118,6 @@
     "Kansas City Advanced Imaging": "Kansas City",
     "Remington Molecular": "Remington"
   },
-
   "_decisionsComment": [
     "Pinned by the meeting owner. Rule-flagged candidates are appended automatically",
     "with no next step written — nobody's copy is invented for them."
@@ -105,28 +127,40 @@
       "id": "pdi",
       "title": "Precision Diagnostic Imaging",
       "status": "critical",
-      "meta": ["Ohio · 3 locations · Bryndon", "Started 12.15.25 · 261 days · 75% complete"],
+      "meta": [
+        "Ohio · 3 locations · Bryndon",
+        "Started 12.15.25 · 261 days · 75% complete"
+      ],
       "nextStep": "Send RamSoft PDI's DICOM IP, AE title and port so ticket #94195 can resolve the duplicate peer IP."
     },
     {
       "id": "parkwood",
       "title": "Parkwood MRI",
       "status": "serious",
-      "meta": ["Michigan · Ryan · RamSoft PACS", "Tech complete, ClickUp not updated · 113 days"],
+      "meta": [
+        "Michigan · Ryan · RamSoft PACS",
+        "Tech complete, ClickUp not updated · 113 days"
+      ],
       "nextStep": "Get the onboarding call on the calendar with Renee, then close the five stale subtasks."
     },
     {
       "id": "tifton",
       "title": "Open MRI of Tifton",
       "status": "serious",
-      "meta": ["Georgia · Sam · ping passed", "Started 07.28.26 · 36 days"],
+      "meta": [
+        "Georgia · Sam · ping passed",
+        "Started 07.28.26 · 36 days"
+      ],
       "nextStep": "RamSoft will only act through Michael Bennett, who owns all these tunnels. Route the request via him."
     },
     {
       "id": "tn-cohort",
       "title": "Paragon & Pinnacle & Keystone",
       "status": "serious",
-      "meta": ["Tennessee SaaS cohort · Sam", "All started 07.27.26 · 37 days, 0% closed"],
+      "meta": [
+        "Tennessee SaaS cohort · Sam",
+        "All started 07.27.26 · 37 days, 0% closed"
+      ],
       "nextStep": "Treat as one batch: request VPN forms for all three in a single pass this week."
     },
     {
@@ -143,7 +177,10 @@
       "id": "parked-seven",
       "title": "Seven parked centers",
       "status": "watch",
-      "meta": ["MRI Associates and TGH flagged urgent while on hold", "No hold reason or review date on any"],
+      "meta": [
+        "MRI Associates and TGH flagged urgent while on hold",
+        "No hold reason or review date on any"
+      ],
       "nextStep": "Decide keep or close on each. Anything kept needs a named blocker and a review date."
     }
   ]
