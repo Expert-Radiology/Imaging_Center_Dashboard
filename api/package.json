@@ -1,0 +1,23 @@
+{
+  "name": "imaging-center-dashboard-api",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/api/src/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/api/src/server.js",
+    "refresh": "node dist/api/src/refresh-job.js",
+    "dev": "tsc && node dist/api/src/server.js",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@azure/data-tables": "^13.3.0",
+    "@azure/identity": "^4.5.0",
+    "@azure/storage-blob": "^12.26.0",
+    "@azure/keyvault-secrets": "^4.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "typescript": "^5.9.0"
+  }
+}

@@ -1,0 +1,98 @@
+name: Build and deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  RESOURCE_GROUP: rg-imaging-center-dashboard
+  IMAGE_NAME: imaging-center-dashboard
+
+jobs:
+  verify:
+    name: Typecheck and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - name: Typecheck and build the app
+        run: npm run build
+
+      - name: Install API dependencies
+        working-directory: api
+        run: npm ci
+      - name: Typecheck the API
+        working-directory: api
+        run: npm run lint
+
+      # Catches Dockerfile and multi-stage build breakage on pull requests,
+      # before anything reaches the registry.
+      - name: Build the container image
+        run: docker build -t "$IMAGE_NAME:ci" .
+
+  deploy:
+    name: Deploy to Container Apps
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      # Federated credentials — no long-lived service principal secret in the repo.
+      - name: Sign in to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Resolve the registry
+        id: registry
+        run: |
+          server=$(az acr list --resource-group "$RESOURCE_GROUP" --query "[0].loginServer" -o tsv)
+          echo "server=$server" >> "$GITHUB_OUTPUT"
+
+      # Built by ACR itself, so the runner needs no registry credentials and the
+      # image never leaves Azure.
+      - name: Build the image in ACR
+        run: |
+          az acr build \
+            --registry "${{ steps.registry.outputs.server }}" \
+            --image "$IMAGE_NAME:${{ github.sha }}" \
+            --image "$IMAGE_NAME:latest" \
+            --file Dockerfile .
+
+      # The same template updates the web app and the refresh job, so they can
+      # never drift onto different images.
+      - name: Deploy infrastructure and roll out the image
+        run: |
+          az deployment group create \
+            --resource-group "$RESOURCE_GROUP" \
+            --template-file infra/main.bicep \
+            --parameters infra/main.parameters.json \
+            --parameters \
+              imageTag=${{ github.sha }} \
+              aadClientId=${{ secrets.AAD_CLIENT_ID }} \
+              aadClientSecret=${{ secrets.AAD_CLIENT_SECRET }} \
+              clickUpToken=${{ secrets.CLICKUP_TOKEN }}
+
+      - name: Report the URL
+        run: |
+          url=$(az deployment group show \
+            --resource-group "$RESOURCE_GROUP" \
+            --name main \
+            --query "properties.outputs.appUrl.value" -o tsv)
+          echo "Deployed to $url" >> "$GITHUB_STEP_SUMMARY"

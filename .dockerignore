@@ -1,0 +1,13 @@
+node_modules
+api/node_modules
+dist
+api/dist
+.git
+.github
+.claude
+infra
+*.md
+*.tsbuildinfo
+.env
+.env.local
+api/.env

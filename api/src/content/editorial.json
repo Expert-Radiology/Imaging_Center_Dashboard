@@ -1,0 +1,150 @@
+{
+  "_comment": [
+    "Human-maintained content. Everything here is a judgement call that no ClickUp",
+    "field can make: who is on the team, which items the meeting should discuss, the",
+    "one-line next action per connection, and blockers that are real but have no",
+    "ClickUp task behind them (a RamSoft ticket on a completed center, an",
+    "infrastructure item).",
+    "",
+    "Edit this file and redeploy. Anything not listed renders as a gap, never as a",
+    "guess — a connection with no nextAction shows an em dash."
+  ],
+
+  "team": {
+    "projectLead": "Cristian Lorenzo",
+    "onboardingIntegrations": "Sebastian Sterling",
+    "clientSuccess": "Wesley Graham"
+  },
+
+  "nextActions": {
+    "Precision Diagnostic Imaging": "Send PDI DICOM IP, AE title and port to RamSoft",
+    "Parkwood MRI": "Book call with Renee; close 5 stale subtasks (tech is done)",
+    "One Step Diagnostic": "Confirm Francis received signed test report on OSD460549",
+    "Open MRI of Tifton": "Re-route VPN request through Michael Bennett",
+    "Paragon Imaging": "Request VPN form (batch with Pinnacle and Keystone)",
+    "Pinnacle Joint & Spine": "Request VPN form (batch with Paragon and Keystone)",
+    "Keystone Medical Group": "Request VPN form (batch with Paragon and Pinnacle)",
+    "Gainesville High Field MRI": "Populate contact fields, send intro email",
+    "The MRI Group": "Schedule kickoff call",
+    "MRI of Key West": "Set start date and connection type so TAT can be measured",
+    "Affiliated Healthcare": "Confirm PSA attached, then kick off",
+    "Stat Imaging": "Chase the call; flagged urgent since creation",
+    "Open MRI of Conway": "Send intro email to Michael Bennett within SOP window",
+    "Searcy Open MRI": "Send intro email to Michael Bennett within SOP window",
+    "Professional Radiology of Oregon": "Send intro email, set target deploy date",
+    "Kansas City Advanced Imaging": "Assign an owner this week",
+    "MRI Now": "Set a target deploy date or park it",
+    "Chenal MRI": "Set a target deploy date or park it",
+    "Remington Molecular": "Confirm this is distinct from the completed Remington record",
+    "Global DX": "Chase the call, then schedule the build",
+    "Inview": "Activate or remove from pipeline",
+    "MRI Associates": "Resolve the contradiction: urgent tag on a held deal",
+    "TGH (Tower)": "Decide keep or close",
+    "Highline Radiology": "Decide keep or close",
+    "Millenium MRI (V3)": "Decide keep or close",
+    "Open MRI 17": "Decide keep or close",
+    "3T MRI at Belfair": "Decide keep or close",
+    "Broadway Imaging": "Decide keep or close"
+  },
+
+  "blockerExtras": [
+    {
+      "group": "ramsoft",
+      "label": "McAllen",
+      "text": "signed reports not delivering, recurring (#94265)"
+    },
+    {
+      "group": "internal",
+      "label": "CareFirst / RadX",
+      "text": "call requested on duplicate connection request"
+    },
+    {
+      "group": "technosoft",
+      "label": "Mirth ports 8080/8443",
+      "text": "P2S VPN rule shipped Sep 2, needs validation"
+    }
+  ],
+
+  "_proposedSequenceComment": [
+    "Delete this block once `Estimated deployment date` exists on the ClickUp list.",
+    "While it is here the throughput row is a proposal and every date renders with *.",
+    "Keys are week offsets from the current week: 0 = this week, 5 = five weeks out."
+  ],
+  "proposedSequence": {
+    "0": ["Precision Diagnostic Imaging", "Parkwood MRI"],
+    "1": ["One Step Diagnostic", "Open MRI of Tifton"],
+    "2": ["Paragon Imaging", "Pinnacle Joint & Spine", "Keystone Medical Group"],
+    "3": ["Gainesville High Field MRI", "The MRI Group", "MRI of Key West"],
+    "4": ["Affiliated Healthcare", "Stat Imaging"],
+    "5": ["Open MRI of Conway", "Searcy Open MRI"]
+  },
+
+  "shortNames": {
+    "Precision Diagnostic Imaging": "PDI",
+    "Parkwood MRI": "Parkwood",
+    "One Step Diagnostic": "One Step Dx",
+    "Paragon Imaging": "Paragon",
+    "Pinnacle Joint & Spine": "Pinnacle J&S",
+    "Keystone Medical Group": "Keystone",
+    "Gainesville High Field MRI": "Gainesville HF",
+    "MRI of Key West": "MRI of Key West",
+    "Affiliated Healthcare": "Affiliated",
+    "Open MRI of Conway": "Conway",
+    "Searcy Open MRI": "Searcy",
+    "Professional Radiology of Oregon": "Prof. Radiology of Oregon",
+    "Kansas City Advanced Imaging": "Kansas City",
+    "Remington Molecular": "Remington"
+  },
+
+  "_decisionsComment": [
+    "Pinned by the meeting owner. Rule-flagged candidates are appended automatically",
+    "with no next step written — nobody's copy is invented for them."
+  ],
+  "decisions": [
+    {
+      "id": "pdi",
+      "title": "Precision Diagnostic Imaging",
+      "status": "critical",
+      "meta": ["Ohio · 3 locations · Bryndon", "Started 12.15.25 · 261 days · 75% complete"],
+      "nextStep": "Send RamSoft PDI's DICOM IP, AE title and port so ticket #94195 can resolve the duplicate peer IP."
+    },
+    {
+      "id": "parkwood",
+      "title": "Parkwood MRI",
+      "status": "serious",
+      "meta": ["Michigan · Ryan · RamSoft PACS", "Tech complete, ClickUp not updated · 113 days"],
+      "nextStep": "Get the onboarding call on the calendar with Renee, then close the five stale subtasks."
+    },
+    {
+      "id": "tifton",
+      "title": "Open MRI of Tifton",
+      "status": "serious",
+      "meta": ["Georgia · Sam · ping passed", "Started 07.28.26 · 36 days"],
+      "nextStep": "RamSoft will only act through Michael Bennett, who owns all these tunnels. Route the request via him."
+    },
+    {
+      "id": "tn-cohort",
+      "title": "Paragon & Pinnacle & Keystone",
+      "status": "serious",
+      "meta": ["Tennessee SaaS cohort · Sam", "All started 07.27.26 · 37 days, 0% closed"],
+      "nextStep": "Treat as one batch: request VPN forms for all three in a single pass this week."
+    },
+    {
+      "id": "hubspot-four",
+      "title": "Four new HubSpot centers",
+      "status": "satisfactory",
+      "meta": [
+        "Conway, Searcy, Prof. Radiology of Oregon, Kansas City",
+        "Created Aug 25–26 by Kevin Cintron from HubSpot deals"
+      ],
+      "nextStep": "Handoff automation is working. Assign Kansas City an owner and send intro emails to all four."
+    },
+    {
+      "id": "parked-seven",
+      "title": "Seven parked centers",
+      "status": "watch",
+      "meta": ["MRI Associates and TGH flagged urgent while on hold", "No hold reason or review date on any"],
+      "nextStep": "Decide keep or close on each. Anything kept needs a named blocker and a review date."
+    }
+  ]
+}
