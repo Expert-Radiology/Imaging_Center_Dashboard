@@ -11,8 +11,14 @@ param namePrefix string = 'imgcenter'
 @description('Entra ID tenant the dashboard is restricted to.')
 param tenantId string = subscription().tenantId
 
-@description('Application (client) ID of the Entra app registration used for sign-in.')
-param aadClientId string
+@description('OAuth 2.0 client ID from Google Cloud Console, used for sign-in.')
+param googleClientId string
+
+@description('''
+Only accounts in this email domain may see the dashboard. Google sign-in proves
+an account exists; this is what proves it is one of ours.
+''')
+param allowedEmailDomain string = 'expertradiology.com'
 
 @description('''
 Set false for the first deployment of a new resource group: provisions the
@@ -134,7 +140,7 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
 // Both are referenced below by their versionless URI, so rotating either one
 // takes effect without redeploying anything.
 var clickUpSecretUri = '${keyVault.properties.vaultUri}secrets/clickup-token'
-var aadSecretUri = '${keyVault.properties.vaultUri}secrets/aad-client-secret'
+var googleSecretUri = '${keyVault.properties.vaultUri}secrets/google-client-secret'
 
 resource logs 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: 'log-${namePrefix}'
@@ -180,6 +186,13 @@ var sharedEnv = [
   }
 ]
 
+var webEnv = concat(sharedEnv, [
+  {
+    name: 'ALLOWED_EMAIL_DOMAIN'
+    value: allowedEmailDomain
+  }
+])
+
 resource app 'Microsoft.App/containerApps@2024-03-01' = if (deployWorkloads) {
   name: appName
   location: location
@@ -206,8 +219,8 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = if (deployWorkloads) {
       ]
       secrets: [
         {
-          name: 'aad-client-secret'
-          keyVaultUrl: aadSecretUri
+          name: 'google-client-secret'
+          keyVaultUrl: googleSecretUri
           identity: identity.id
         }
       ]
@@ -221,7 +234,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = if (deployWorkloads) {
             cpu: json('0.5')
             memory: '1Gi'
           }
-          env: sharedEnv
+          env: webEnv
           probes: [
             {
               type: 'Readiness'
@@ -262,7 +275,11 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = if (deployWorkloads) {
 }
 
 // Internal pipeline data with customer names, IT contacts and ticket numbers.
-// Every request must carry an Entra ID identity from this tenant.
+//
+// This gets the caller as far as "holds a Google account". Google's `hd`
+// parameter is a UI hint the client controls, not an enforced constraint, so the
+// container itself checks the verified email against ALLOWED_EMAIL_DOMAIN and
+// refuses anyone else. Both halves are required.
 resource authConfig 'Microsoft.App/containerApps/authConfigs@2024-03-01' = if (deployWorkloads) {
   parent: app
   name: 'current'
@@ -272,28 +289,25 @@ resource authConfig 'Microsoft.App/containerApps/authConfigs@2024-03-01' = if (d
     }
     globalValidation: {
       unauthenticatedClientAction: 'RedirectToLoginPage'
-      redirectToProvider: 'azureactivedirectory'
+      redirectToProvider: 'google'
       excludedPaths: [
         '/healthz'
       ]
     }
     identityProviders: {
-      azureActiveDirectory: {
+      google: {
         enabled: true
         registration: {
-          openIdIssuer: '${az.environment().authentication.loginEndpoint}${tenantId}/v2.0'
-          clientId: aadClientId
-          clientSecretSettingName: 'aad-client-secret'
+          clientId: googleClientId
+          clientSecretSettingName: 'google-client-secret'
         }
-        validation: {
-          allowedAudiences: [
-            'api://${aadClientId}'
+        login: {
+          // `email` is required: the domain check has nothing to read without it.
+          scopes: [
+            'openid'
+            'profile'
+            'email'
           ]
-          defaultAuthorizationPolicy: {
-            allowedApplications: [
-              aadClientId
-            ]
-          }
         }
       }
     }
@@ -422,7 +436,8 @@ output registryLoginServer string = registry.properties.loginServer
 output imageRepository string = imageName
 output refreshJobName string = deployWorkloads ? refreshJob!.name : ''
 output clickUpSecretName string = 'clickup-token'
-output aadSecretName string = 'aad-client-secret'
+output googleSecretName string = 'google-client-secret'
 output storageAccountName string = storage.name
 output keyVaultName string = keyVault.name
 output managedIdentityClientId string = identity.properties.clientId
+output googleRedirectUri string = deployWorkloads ? 'https://${app!.properties.configuration.ingress.fqdn}/.auth/login/google/callback' : ''

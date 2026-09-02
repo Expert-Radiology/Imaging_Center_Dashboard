@@ -11,8 +11,11 @@
     "refreshCron": {
       "value": "0 * * * *"
     },
-    "aadClientId": {
+    "googleClientId": {
       "value": ""
+    },
+    "allowedEmailDomain": {
+      "value": "expertradiology.com"
     }
   }
 }
