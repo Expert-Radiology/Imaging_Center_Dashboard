@@ -2,12 +2,17 @@
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-    "namePrefix": { "value": "imgcenter" },
-    "clickUpListId": { "value": "901316440634" },
-    "refreshCron": { "value": "0 * * * *" },
-
-    "aadClientId": { "value": "" },
-    "aadClientSecret": { "value": "" },
-    "clickUpToken": { "value": "" }
+    "namePrefix": {
+      "value": "imgcenter"
+    },
+    "clickUpListId": {
+      "value": "901316440634"
+    },
+    "refreshCron": {
+      "value": "0 * * * *"
+    },
+    "aadClientId": {
+      "value": ""
+    }
   }
 }

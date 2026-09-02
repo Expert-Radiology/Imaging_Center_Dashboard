@@ -81,43 +81,49 @@ Azure Container Apps, scaled to zero: the site costs nothing while nobody is loo
 a couple of seconds on the first request. The hourly refresh runs as a Container Apps job, which
 is unaffected by the app being asleep.
 
-**1. Register the Entra app** for sign-in (Entra ID → App registrations). Redirect URI
-`https://<app-fqdn>/.auth/login/aad/callback` — you get the FQDN from step 2, so register first
-with a placeholder and update it after. Note the client id and create a client secret.
+The template has a `deployWorkloads` flag so a brand-new resource group can be brought up in the
+right order: registry, storage, vault and identity first, then the image, then the workloads that
+consume them.
 
-**2. Deploy the infrastructure.**
+**1. Register two Entra apps.** One for GitHub to authenticate with (federated credentials, no
+secret), one for people to sign in to the dashboard with. The sign-in app's redirect URI is
+`https://<app-fqdn>/.auth/login/aad/callback`, and the FQDN only exists after step 3 — register with
+a placeholder and update it afterwards.
+
+**2. Bootstrap the infrastructure.**
 
 ```bash
-az group create --name rg-imaging-center-dashboard --location eastus2
+az deployment group create --resource-group rg-imaging-center-dashboard --name bootstrap --template-file infra/main.bicep --parameters infra/main.parameters.json --parameters deployWorkloads=false aadClientId=<sign-in-app-id>
+```
+
+**3. Put both secrets in Key Vault.** They are deliberately not deployment parameters — see the
+comment in `main.bicep`. Write them from a file with no trailing newline; a stray `\n` on the Entra
+secret produces an "invalid client secret" that is genuinely unpleasant to diagnose.
+
+```bash
+printf '%s' '<clickup-token>' > /tmp/s && az keyvault secret set --vault-name <vault> --name clickup-token --file /tmp/s && rm -f /tmp/s
+```
+
+**4. Build the image**, then deploy the workloads.
+
+```bash
+az acr build --registry <registry> --image imaging-center-dashboard:latest --file Dockerfile .
 ```
 
 ```bash
-az deployment group create --resource-group rg-imaging-center-dashboard --template-file infra/main.bicep --parameters infra/main.parameters.json --parameters aadClientId=<client-id> aadClientSecret=<client-secret> clickUpToken=<clickup-token>
+az deployment group create --resource-group rg-imaging-center-dashboard --name main --template-file infra/main.bicep --parameters infra/main.parameters.json --parameters deployWorkloads=true aadClientId=<sign-in-app-id> imageTag=latest
 ```
 
-The first deployment provisions the registry before any image exists, so the app and job will fail
-to pull until step 3 pushes one. That is expected.
+**5. Point the redirect URI at the real FQDN**, which step 4 outputs as `appUrl`.
 
-**3. Build and push the image**, then re-run the deployment so both the app and the job move to it.
-The workflow does this on every push to `main`; for the first run:
+**6. Wire CI.** The workflow needs `AZURE_CLIENT_ID`, `AZURE_TENANT_ID` and `AZURE_SUBSCRIPTION_ID`
+as repository secrets, `AAD_CLIENT_ID` as a repository variable, and a `production` environment.
+No secret values are passed to the deployment, so nothing else belongs in GitHub.
 
-```bash
-az acr build --registry $(az acr list -g rg-imaging-center-dashboard --query "[0].name" -o tsv) --image imaging-center-dashboard:latest --file Dockerfile .
-```
-
-**4. Wire CI.** Create a federated credential for the repo (no long-lived secret) and add
-`AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AAD_CLIENT_ID`,
-`AAD_CLIENT_SECRET` and `CLICKUP_TOKEN` as repository secrets. `.github/workflows/deploy.yml`
-then typechecks, builds the image in ACR, and rolls out app and job together.
-
-**5. Run the refresh once** rather than waiting for the top of the hour:
+**7. Run the refresh once** rather than waiting for the top of the hour:
 
 ```bash
 az containerapp job start --name caj-imgcenter-refresh --resource-group rg-imaging-center-dashboard
-```
-
-```bash
-az containerapp job execution list --name caj-imgcenter-refresh --resource-group rg-imaging-center-dashboard --query "[0].properties.status" -o tsv
 ```
 
 ### What the deployment sets up
@@ -127,8 +133,10 @@ az containerapp job execution list --name caj-imgcenter-refresh --resource-group
 - **One weekly snapshot** to Table Storage. **Do not skip this** — "Last week" status, "new centers
   this week" and the "actually completed" throughput row cannot be computed from a live read, only
   from week-over-week diffs.
-- **The ClickUp token in Key Vault**, read by the job through a user-assigned managed identity.
-  It is never baked into the image and never reaches the browser.
+- **Both secrets in Key Vault**, referenced by versionless URI: the job reads the ClickUp token
+  through the managed identity, and the app reads its Entra secret the same way. Rotating either
+  takes effect without redeploying, and a redeploy can never overwrite a rotated value with a
+  stale parameter.
 - **Storage with shared-key access disabled** and no public blob access; both containers reach it
   by RBAC on that same identity.
 - **Entra ID on every request** except `/healthz`, via the platform's built-in auth. This is

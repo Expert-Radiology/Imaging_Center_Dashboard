@@ -14,13 +14,12 @@ param tenantId string = subscription().tenantId
 @description('Application (client) ID of the Entra app registration used for sign-in.')
 param aadClientId string
 
-@description('Client secret of that app registration.')
-@secure()
-param aadClientSecret string
-
-@description('ClickUp API token. Stored in Key Vault; the job reads it with the managed identity.')
-@secure()
-param clickUpToken string
+@description('''
+Set false for the first deployment of a new resource group: provisions the
+registry, storage, vault and identity only, so the image can be built and the
+Key Vault secrets created before the workloads that consume them exist.
+''')
+param deployWorkloads bool = true
 
 @description('ClickUp list id — "Imaging Center Onboarding".')
 param clickUpListId string = '901316440634'
@@ -122,14 +121,20 @@ resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   }
 }
 
-resource clickUpSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
-  parent: keyVault
-  name: 'clickup-token'
-  properties: {
-    value: clickUpToken
-    contentType: 'ClickUp API token (move to a service account before launch)'
-  }
-}
+// The two secrets are NOT declared here on purpose.
+//
+// A secret passed as a deployment parameter travels through whatever runs the
+// deployment — a shell, a CI log, the ARM deployment history — and a redeploy
+// with a stale parameter silently overwrites a rotated value. Instead the vault
+// is created empty and the secrets are written to it once, out of band:
+//
+//   az keyvault secret set --vault-name <vault> --name clickup-token     --value <token>
+//   az keyvault secret set --vault-name <vault> --name aad-client-secret --value <secret>
+//
+// Both are referenced below by their versionless URI, so rotating either one
+// takes effect without redeploying anything.
+var clickUpSecretUri = '${keyVault.properties.vaultUri}secrets/clickup-token'
+var aadSecretUri = '${keyVault.properties.vaultUri}secrets/aad-client-secret'
 
 resource logs 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: 'log-${namePrefix}'
@@ -175,7 +180,7 @@ var sharedEnv = [
   }
 ]
 
-resource app 'Microsoft.App/containerApps@2024-03-01' = {
+resource app 'Microsoft.App/containerApps@2024-03-01' = if (deployWorkloads) {
   name: appName
   location: location
   identity: {
@@ -202,7 +207,8 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
       secrets: [
         {
           name: 'aad-client-secret'
-          value: aadClientSecret
+          keyVaultUrl: aadSecretUri
+          identity: identity.id
         }
       ]
     }
@@ -249,12 +255,15 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
   }
   dependsOn: [
     acrPullRole
+    // The app cannot read its Entra secret until the identity has vault access,
+    // and RBAC takes a moment to propagate.
+    keyVaultRole
   ]
 }
 
 // Internal pipeline data with customer names, IT contacts and ticket numbers.
 // Every request must carry an Entra ID identity from this tenant.
-resource authConfig 'Microsoft.App/containerApps/authConfigs@2024-03-01' = {
+resource authConfig 'Microsoft.App/containerApps/authConfigs@2024-03-01' = if (deployWorkloads) {
   parent: app
   name: 'current'
   properties: {
@@ -296,7 +305,7 @@ resource authConfig 'Microsoft.App/containerApps/authConfigs@2024-03-01' = {
 
 // The hourly refresh. A job rather than a timer inside the web container,
 // because a scale-to-zero app has no process running most of the time.
-resource refreshJob 'Microsoft.App/jobs@2024-03-01' = {
+resource refreshJob 'Microsoft.App/jobs@2024-03-01' = if (deployWorkloads) {
   name: jobName
   location: location
   identity: {
@@ -342,7 +351,7 @@ resource refreshJob 'Microsoft.App/jobs@2024-03-01' = {
           env: concat(sharedEnv, [
             {
               name: 'CLICKUP_TOKEN_SECRET_URI'
-              value: clickUpSecret.properties.secretUri
+              value: clickUpSecretUri
             }
             {
               name: 'CLICKUP_LIST_ID'
@@ -355,6 +364,7 @@ resource refreshJob 'Microsoft.App/jobs@2024-03-01' = {
   }
   dependsOn: [
     acrPullRole
+    keyVaultRole
   ]
 }
 
@@ -407,10 +417,12 @@ resource keyVaultRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
-output appUrl string = 'https://${app.properties.configuration.ingress.fqdn}'
+output appUrl string = deployWorkloads ? 'https://${app!.properties.configuration.ingress.fqdn}' : ''
 output registryLoginServer string = registry.properties.loginServer
 output imageRepository string = imageName
-output refreshJobName string = refreshJob.name
+output refreshJobName string = deployWorkloads ? refreshJob!.name : ''
+output clickUpSecretName string = 'clickup-token'
+output aadSecretName string = 'aad-client-secret'
 output storageAccountName string = storage.name
 output keyVaultName string = keyVault.name
 output managedIdentityClientId string = identity.properties.clientId

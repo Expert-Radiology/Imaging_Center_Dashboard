@@ -76,7 +76,10 @@ jobs:
             --file Dockerfile .
 
       # The same template updates the web app and the refresh job, so they can
-      # never drift onto different images.
+      # never drift onto different images. No secret values are passed: the
+      # ClickUp token and the Entra client secret live in Key Vault and are read
+      # by the workloads' managed identity, so a redeploy can never clobber a
+      # rotated secret.
       - name: Deploy infrastructure and roll out the image
         run: |
           az deployment group create \
@@ -85,9 +88,7 @@ jobs:
             --parameters infra/main.parameters.json \
             --parameters \
               imageTag=${{ github.sha }} \
-              aadClientId=${{ secrets.AAD_CLIENT_ID }} \
-              aadClientSecret=${{ secrets.AAD_CLIENT_SECRET }} \
-              clickUpToken=${{ secrets.CLICKUP_TOKEN }}
+              aadClientId=${{ vars.AAD_CLIENT_ID }}
 
       - name: Report the URL
         run: |
